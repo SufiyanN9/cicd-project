@@ -1,0 +1,83 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    env:
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+      ECR_REPOSITORY: ${{ secrets.ECR_REPOSITORY }} 
+      ECS_SERVICE_NAME: ${{ secrets.ECS_SERVICE_NAME }} 
+      ECS_CLUSTER_NAME: ${{ secrets.ECS_CLUSTER_NAME }} 
+      
+    steps:
+      # Checkout the code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '14'
+
+      # Install dependencies
+      - name: Install dependencies
+        run: npm install
+
+      # Set up Docker
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      # Log in to Amazon ECR
+      - name: Log in to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v1
+
+      # Build and tag the Docker image
+      - name: Build Docker image
+        run: |
+          docker build -t myapp01:latest .
+      - name: Tag Docker image
+        run: docker tag myapp01:latest ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/myapp01:latest
+        
+      # Push Docker image to Amazon ECR
+      - name: Push Docker image to Amazon ECR
+        run: |
+          docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPOSITORY }}:latest
+      
+      # Render ECS task definition with the latest image
+      - name: Render ECS Task Definition
+        run: |
+          sed -i 's|876399374765.dkr.ecr.us-east-1.amazonaws.com/myapp01|${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/myapp01:latest|g' ecs-task-definition.json
+
+      - name: Validate ECS Task Definition
+        run: cat ecs-task-definition.json
+        
+      # Deploy to ECS
+      - name: Deploy to Amazon ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ecs-task-definition.json
+          service: ${{ secrets.ECS_SERVICE_NAME }}
+          cluster: ${{ secrets.ECS_CLUSTER_NAME }}
+          wait-for-service-stability: true
+
+      # Integration Test
+      - name: Run Integration Tests
+        run: |
+          curl -f http://mynewELB-1150994011.us-east-1.elb.amazonaws.com/will || exit 1
+          curl -f http://mynewELB-1150994011.us-east-1.elb.amazonaws.com/ready || exit 1
+
+      # Rollback if Integration Tests fail
+      - name: Rollback ECS Deployment if Tests Fail
+        if: failure()
+        run: |
+          aws ecs update-service --cluster ${{ secrets.ECS_CLUSTER_NAME }} --service ${{ secrets.ECS_SERVICE_NAME }} --force-new-deployment

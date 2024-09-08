@@ -1,0 +1,17 @@
+{
+  "name": "myapp01",
+  "description": "myapp01 for CICD",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "mocha": "9.1.1",
+    "supertest": "6.1.6"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "test": "./node_modules/.bin/mocha ./test/test.js"
+  }
+}

@@ -1,0 +1,24 @@
+{
+    "family": "myapp01",
+    "networkMode": "awsvpc",
+    "containerDefinitions": [
+      {
+        "name": "myapp01_container",
+        "image": "876399374765.dkr.ecr.us-east-1.amazonaws.com/myapp01",
+        "portMappings": [
+          {
+            "containerPort": 80,
+            "hostPort": 80
+          }
+        ],
+        "essential": true
+      }
+    ],
+    "requiresCompatibilities": [
+      "FARGATE"
+    ],
+    "cpu": "256",
+    "memory": "512",
+    "executionRoleArn": "arn:aws:iam::876399374765:role/myapp01-ECSlatestpolicy",
+    "taskRoleArn": "arn:aws:iam::876399374765:role/myapp01-ECStaskpolicy"
+  }
