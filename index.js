@@ -2,7 +2,7 @@ const express = require('express');
 const app = express();
 
 app.get('/', (req, res) => {
-    res.send('Hello welocome to my Dockerised cloud hosted application');
+    res.send('Hello Welcome to my Dockerized cloud hosted application');
 });
 
 // endpoint for health check
